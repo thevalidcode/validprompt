@@ -7,7 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "prisma:migrate": "prisma migrate deploy && prisma generate",
-    "deploy": "npm run build && npm run prisma:migrate",
+    "deploy": "npm run prisma:migrate && npm run build",
     "lint": "eslint"
   },
   "dependencies": {
