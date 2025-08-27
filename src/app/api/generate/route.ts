@@ -73,13 +73,18 @@ export async function POST(req: Request): Promise<Response> {
     const result =
       openAiResponse.data.choices?.[0]?.message?.content || "No response";
     return withCors(NextResponse.json<GenerateResponse>({ result }));
-  } catch (error: any) {
-    console.error(error.response.data.error.message || error);
-    return withCors(
-      NextResponse.json(
-        { error: error.response.data.error.message || "Internal Server Error" },
-        { status: 500 }
-      )
-    );
+  } catch (error: unknown) {
+    let message = "Internal Server Error";
+
+    if (axios.isAxiosError(error)) {
+      // If the error has a response with data and message
+      message = error.response?.data?.error?.message ?? message;
+    } else if (error instanceof Error) {
+      message = error.message;
+    }
+
+    console.error(message);
+
+    return withCors(NextResponse.json({ error: message }, { status: 500 }));
   }
 }

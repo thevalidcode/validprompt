@@ -6,8 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "prisma:deploy": "prisma migrate deploy",
-    "prod:start": "prisma generate && npm run prisma:deploy && npm run build",
+    "prisma:migrate": "prisma migrate deploy && prisma generate",
+    "deploy": "npm run build && npm run prisma:migrate",
     "lint": "eslint"
   },
   "dependencies": {

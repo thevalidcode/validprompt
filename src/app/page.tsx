@@ -27,11 +27,17 @@ export default function Home() {
         input,
       });
       setGeneratedPrompt(data.result);
-    } catch (error: any) {
-      console.error(error);
-      setGeneratedPrompt(
-        error.response.data.error || "Something went wrong. Please try again."
-      );
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        setGeneratedPrompt(
+          error.response?.data?.error ||
+            "Something went wrong with the request."
+        );
+      } else if (error instanceof Error) {
+        setGeneratedPrompt(error.message);
+      } else {
+        setGeneratedPrompt("An unexpected error occurred.");
+      }
     } finally {
       setLoading(false);
     }
