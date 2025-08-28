@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@/generated/prisma";
-import { handlePreflight, withCors } from "@/lib/cors";
 import axios from "axios";
+import { validateOrigin, handlePreflight, corsHeaders } from "@/lib/cors";
 
 const prisma = new PrismaClient();
 const MAX_REQUESTS_PER_DAY = 10;
@@ -13,19 +13,30 @@ interface GenerateResponse {
   result: string;
 }
 
-export async function OPTIONS() {
-  return handlePreflight();
-}
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  // Validate origin
+  const originCheck = validateOrigin(req);
+  if (originCheck) return originCheck;
 
-export async function POST(req: Request): Promise<Response> {
+  // Handle OPTIONS
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+
+  const origin = req.headers.get("origin")!;
+
   try {
     const body: GenerateRequest = await req.json();
-    if (!body.input.trim())
-      return withCors(
-        NextResponse.json({ error: "Input required" }, { status: 400 })
+    if (!body.input || !body.input.trim()) {
+      return NextResponse.json(
+        { error: "Input required" },
+        { status: 400, headers: corsHeaders(origin) }
       );
+    }
 
-    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    const ip =
+      req.headers.get("x-forwarded-for") ||
+      req.headers.get("cf-connecting-ip") ||
+      "unknown";
     const today = new Date().toISOString().slice(0, 10);
 
     // Check usage
@@ -34,22 +45,20 @@ export async function POST(req: Request): Promise<Response> {
     });
 
     if (usage?.count && usage.count >= MAX_REQUESTS_PER_DAY) {
-      return withCors(
-        NextResponse.json(
-          { error: "Rate limit reached (10/day)" },
-          { status: 429 }
-        )
+      return NextResponse.json(
+        { error: "Rate limit reached (10/day)" },
+        { status: 429, headers: corsHeaders(origin) }
       );
     }
 
     // Increment or create
     if (usage) {
-      usage = await prisma.usage.update({
+      await prisma.usage.update({
         where: { ip_date: { ip, date: today } },
         data: { count: { increment: 1 } },
       });
     } else {
-      usage = await prisma.usage.create({
+      await prisma.usage.create({
         data: { ip, date: today, count: 1 },
       });
     }
@@ -70,14 +79,18 @@ export async function POST(req: Request): Promise<Response> {
       },
       { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` } }
     );
+
     const result =
       openAiResponse.data.choices?.[0]?.message?.content || "No response";
-    return withCors(NextResponse.json<GenerateResponse>({ result }));
+
+    return NextResponse.json<GenerateResponse>(
+      { result },
+      { status: 200, headers: corsHeaders(origin) }
+    );
   } catch (error: unknown) {
     let message = "Internal Server Error";
 
     if (axios.isAxiosError(error)) {
-      // If the error has a response with data and message
       message = error.response?.data?.error?.message ?? message;
     } else if (error instanceof Error) {
       message = error.message;
@@ -85,6 +98,9 @@ export async function POST(req: Request): Promise<Response> {
 
     console.error(message);
 
-    return withCors(NextResponse.json({ error: message }, { status: 500 }));
+    return NextResponse.json(
+      { error: message },
+      { status: 500, headers: corsHeaders(origin) }
+    );
   }
 }

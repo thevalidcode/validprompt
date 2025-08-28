@@ -15,9 +15,9 @@ export default function Home() {
 
   const handleGenerate = async () => {
     if (!input.trim()) return;
-    if (input.trim().length > 250) {
+    if (input.trim().length > 500) {
       setLoading(false);
-      setGeneratedPrompt("Input should't be above 250 characters");
+      setGeneratedPrompt("Input should't be above 500 characters");
       return;
     }
     setLoading(true);
@@ -107,10 +107,10 @@ export default function Home() {
           </div>
           <div
             className={`text-sm text-right mt-1 ${
-              input.length > 250 ? "text-red-500" : "text-gray-400"
+              input.length > 500 ? "text-red-500" : "text-gray-400"
             }`}
           >
-            {input.length} / 250
+            {input.length} / 500
           </div>
         </motion.div>
 
