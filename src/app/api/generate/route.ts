@@ -40,7 +40,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const today = new Date().toISOString().slice(0, 10);
 
     // Check usage
-    let usage = await prisma.usage.findUnique({
+    const usage = await prisma.usage.findUnique({
       where: { ip_date: { ip, date: today } },
     });
 
